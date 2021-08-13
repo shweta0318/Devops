@@ -1,0 +1,1030 @@
+{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1033{\fonttbl{\f0\fnil\fcharset0 Calibri;}}
+{\*\generator Riched20 10.0.18362}\viewkind4\uc1 
+\pard\sa200\sl276\slmult1\b\f0\fs22\lang9 Checkability.java\b0\par
+package keySender;\par
+\par
+import Checkability.AttributeCheck;\par
+import Checkability.check;\par
+import cpabe.Common;\par
+import java.io.File;\par
+import java.io.IOException;\par
+import java.io.ObjectInputStream;\par
+import java.io.ObjectOutputStream;\par
+import java.net.ServerSocket;\par
+import java.net.Socket;\par
+import java.util.Vector;\par
+\par
+public class Checkability2 extends Thread \{\par
+\par
+    Socket socket;\par
+    ServerSocket serverSocket;\par
+    ObjectOutputStream output;\par
+    ObjectInputStream input;\par
+\par
+    public Checkability2() throws IOException \{\par
+        serverSocket = new ServerSocket(7897);\par
+         System.out.println("ABE KGSP 2 Server Started Successfully ... ");\par
+    \}\par
+\par
+    public void run() \{\par
+        while (true) \{\par
+            getConnection();\par
+        \}\par
+    \}\par
+\par
+    private boolean getConnection() \{\par
+        try \{\par
+            socket = serverSocket.accept();\par
+            input = new ObjectInputStream(socket.getInputStream());\par
+            output = new ObjectOutputStream(socket.getOutputStream());\par
+            \par
+            File f=new File(System.getProperty("user.dir")+File.separator+"out.txt");\par
+            boolean exists = f.exists();\par
+            if(exists)\par
+            \{\par
+                f.delete();\par
+            \}\par
+            Vector AttributeList = (Vector) input.readObject();\par
+            AttributeCheck ac = new AttributeCheck(50, 4);\par
+            check ck = new check();\par
+            byte[] add = null;\par
+            for (Object attribute : AttributeList) \{\par
+                add = ac.add(attribute.toString());\par
+                System.out.println("attribute : " + attribute);\par
+                ck.writeObjectInFile(ac);\par
+            \}\par
+            for (byte t : add) \{\par
+                System.out.print(t + "");\par
+            \}\par
+            byte[] enc_byte = Common.suckFile(System.getProperty("user.dir")+File.separator+"out.txt");\par
+            output.writeObject(enc_byte);\par
+            output.writeObject(add);\par
+            return true;\par
+        \} catch (Exception e) \{\par
+            e.printStackTrace();\par
+            return false;\par
+        \}\par
+    \}\par
+    \par
+    public static void main(String[] args) throws IOException \{\par
+        new Checkability2().start();\par
+    \}\par
+\}\par
+\b Attribute check\b0\par
+package Checkability;\par
+\par
+import java.math.BigInteger;\par
+import java.nio.ByteBuffer;\par
+import java.security.MessageDigest;\par
+import java.security.NoSuchAlgorithmException;\par
+import java.util.Objects;\par
+\par
+public class AttributeCheck implements java.io.Serializable \{\par
+\par
+    private byte[] set;\par
+    private int keySize, setSize, size;\par
+    private transient MessageDigest md;\par
+    public int[] bitset;\par
+   \par
+    public AttributeCheck(int size,int k) \{\par
+        setSize = size;\par
+        set = new byte[setSize];\par
+        keySize = k;\par
+        size = 0;\par
+        try \{\par
+            md = MessageDigest.getInstance("MD5");\par
+        \} catch (NoSuchAlgorithmException e) \{\par
+            throw new IllegalArgumentException("Error : MD5 Hash not found");\par
+        \}\par
+    \}\par
+    /* Function to clear set */\par
+\par
+    public void makeEmpty() \{\par
+        setSet(new byte[getSetSize()]);\par
+        size = 0;\par
+        try \{\par
+            md = MessageDigest.getInstance("MD5");\par
+        \} catch (NoSuchAlgorithmException e) \{\par
+            throw new IllegalArgumentException("Error : MD5 Hash not found");\par
+        \}\par
+    \}\par
+    /* Function to check is empty */\par
+\par
+    public boolean isEmpty() \{\par
+        return size == 0;\par
+    \}\par
+    /* Function to get size of objects added */\par
+\par
+    public int getSize() \{\par
+        return size;\par
+    \}\par
+    /* Function to get hash - MD5 */\par
+\par
+    private int getHash(int i) \{\par
+        md.reset();\par
+        byte[] bytes = ByteBuffer.allocate(4).putInt(i).array();\par
+        md.update(bytes, 0, bytes.length);\par
+        return Math.abs(new BigInteger(1, md.digest()).intValue()) % (getSet().length - 1);\par
+    \}\par
+    /* Function to add an object */\par
+\par
+    public byte[] add(Object obj) \{\par
+        bitset = new int[getKeySize()];\par
+        int[] tmpset = getSetArray(obj);\par
+        int c = 0;\par
+        for (int i : tmpset) \{\par
+            getSet()[i] = 1;\par
+            bitset[c] = i;\par
+            c++;\par
+        \}\par
+        size++;\par
+        return getSet();\par
+    \}\par
+    /* Function to check is an object is present */\par
+\par
+    public boolean contains(Object obj) \{\par
+        int[] tmpset = getSetArray(obj);\par
+        for (int i : tmpset) \{\par
+            if (getSet()[i] != 1) \{\par
+                return false;\par
+            \}\par
+        \}\par
+        return true;\par
+    \}\par
+    /* Function to get set array for an object */\par
+\par
+    private int[] getSetArray(Object obj) \{\par
+        int[] tmpset = new int[getKeySize()];\par
+        tmpset[0] = getHash(obj.hashCode());\par
+        for (int i = 1; i < getKeySize(); i++) \{\par
+            tmpset[i] = (getHash(tmpset[i - 1]));\par
+        \}\par
+        return tmpset;\par
+    \}\par
+\par
+    \par
+    @Override\par
+    public boolean equals(Object o)\{\par
+        return ((AttributeCheck) o).bitset == this.bitset;\par
+    \}\par
+\par
+    @Override\par
+    public int hashCode() \{\par
+        int hash = 7;\par
+        hash = 71 * hash + Objects.hashCode(this);\par
+        return hash;\par
+    \}\par
+\par
+    /**\par
+     * @return the set\par
+     */\par
+    public byte[] getSet() \{\par
+        return set;\par
+    \}\par
+\par
+    /**\par
+     * @param set the set to set\par
+     */\par
+    public void setSet(byte[] set) \{\par
+        this.set = set;\par
+    \}\par
+\par
+    /**\par
+     * @return the keySize\par
+     */\par
+    public int getKeySize() \{\par
+        return keySize;\par
+    \}\par
+\par
+    /**\par
+     * @param keySize the keySize to set\par
+     */\par
+    public void setKeySize(int keySize) \{\par
+        this.keySize = keySize;\par
+    \}\par
+\par
+    /**\par
+     * @return the setSize\par
+     */\par
+    public int getSetSize() \{\par
+        return setSize;\par
+    \}\par
+\par
+    /**\par
+     * @param setSize the setSize to set\par
+     */\par
+    public void setSetSize(int setSize) \{\par
+        this.setSize = setSize;\par
+    \}\par
+\}\par
+\par
+\b KGSP outsourcing\b0\par
+/*\par
+ * To change this license header, choose License Headers in Project Properties.\par
+ * To change this template file, choose Tools | Templates\par
+ * and open the template in the editor.\par
+ */\par
+package kgsp.outsourcing;\par
+\par
+import java.io.BufferedReader;\par
+import java.io.File;\par
+import java.io.FileOutputStream;\par
+import java.io.FileReader;\par
+import java.io.IOException;\par
+import java.io.ObjectInputStream;\par
+import java.io.ObjectOutputStream;\par
+import java.io.OutputStream;\par
+import java.net.ServerSocket;\par
+import java.net.Socket;\par
+\par
+/**\par
+ *\par
+ * @author Tulajaram\par
+ */\par
+public class KGSPOutsourcing extends Thread\{\par
+\par
+    /**\par
+     * @param args the command line arguments\par
+     */\par
+    ServerSocket serverSocket;\par
+    Socket socket;\par
+    ObjectOutputStream output;\par
+    ObjectInputStream input;\par
+\par
+    public KGSPOutsourcing() throws IOException \{\par
+    serverSocket=new ServerSocket(4547);\par
+    \}\par
+    \par
+    @Override\par
+    public void run()\{\par
+        while (true) \{            \par
+            getConnection();\par
+        \}\par
+    \}\par
+    \par
+    private void getConnection()\{\par
+        try \{\par
+            socket=serverSocket.accept();\par
+            input=new ObjectInputStream(socket.getInputStream());\par
+            String attribute = (String) input.readObject();\par
+            String fileName=(String) input.readObject();\par
+            byte[] fileData=(byte[]) input.readObject();\par
+            File f=new File(System.getProperty("user.dir")+File.separator+"Temp");\par
+            f.mkdir();\par
+            String filepath=f+File.separator+fileName;\par
+            spitFile(filepath, fileData);\par
+            StringPartial oRer=new StringPartial();\par
+            BufferedReader br=new BufferedReader(new FileReader(filepath));\par
+            String line="";\par
+            StringBuilder sb=new StringBuilder();\par
+            line=br.readLine()   ;             \par
+                sb.append(line);\par
+            \par
+            byte[] decode = oRer.decode(line, attribute);\par
+            output=new ObjectOutputStream(socket.getOutputStream());\par
+            output.writeObject(decode);\par
+        \} catch (Exception e) \{\par
+        e.printStackTrace();\par
+        \}\par
+        \par
+    \}\par
+    \par
+    \tab public static void spitFile(String outputfile, byte[] b) throws IOException \{\par
+\tab\tab OutputStream os = new FileOutputStream(outputfile);\par
+\tab\tab os.write(b);\par
+\tab\tab os.close();\par
+\tab\}\par
+    public static void main(String[] args) throws IOException \{\par
+        // TODO code application logic here\par
+        new KGSPOutsourcing().start();\par
+        new ReceiveFileFromServer().start();\par
+    \}\par
+    \par
+\}\par
+\par
+\b bswabe.java\b0\par
+package bswabe;\par
+\par
+import it.unisa.dia.gas.jpbc.CurveParameters;\par
+import it.unisa.dia.gas.jpbc.Element;\par
+import it.unisa.dia.gas.jpbc.Pairing;\par
+import it.unisa.dia.gas.plaf.jpbc.pairing.DefaultCurveParameters;\par
+import it.unisa.dia.gas.plaf.jpbc.pairing.PairingFactory;\par
+\par
+import java.io.ByteArrayInputStream;\par
+import java.security.MessageDigest;\par
+import java.security.NoSuchAlgorithmException;\par
+import java.util.ArrayList;\par
+import java.util.Collections;\par
+import java.util.Comparator;\par
+\par
+public class Bswabe \{\par
+\par
+    /*\par
+     * Generate a public key and corresponding master secret key.\par
+     */\par
+    private static String curveParams = "type a\\n"\par
+            + "q 87807107996633125224377819847540498158068831994142082"\par
+            + "1102865339926647563088022295707862517942266222142315585"\par
+            + "8769582317459277713367317481324925129998224791\\n"\par
+            + "h 12016012264891146079388821366740534204802954401251311"\par
+            + "822919615131047207289359704531102844802183906537786776\\n"\par
+            + "r 730750818665451621361119245571504901405976559617\\n"\par
+            + "exp2 159\\n" + "exp1 107\\n" + "sign1 1\\n" + "sign0 1\\n";\par
+\par
+    public static void setup(BswabePub pub, BswabeMsk msk) \{\par
+        Element alpha, beta_inv;\par
+\par
+        CurveParameters params = new DefaultCurveParameters().load(new ByteArrayInputStream(curveParams.getBytes()));\par
+\par
+        pub.pairingDesc = curveParams;\par
+        pub.p = PairingFactory.getPairing(params);\par
+        Pairing pairing = pub.p;\par
+\par
+        pub.g = pairing.getG1().newElement();\par
+        pub.f = pairing.getG1().newElement();\par
+        pub.h = pairing.getG1().newElement();\par
+        pub.gp = pairing.getG2().newElement();\par
+        pub.g_hat_alpha = pairing.getGT().newElement();\par
+        alpha = pairing.getZr().newElement();\par
+        msk.beta = pairing.getZr().newElement();\par
+        msk.g_alpha = pairing.getG2().newElement();\par
+\par
+        alpha.setToRandom();\par
+        msk.beta.setToRandom();\par
+        pub.g.setToRandom();\par
+        pub.gp.setToRandom();\par
+\par
+        msk.g_alpha = pub.gp.duplicate();\par
+        msk.g_alpha.powZn(alpha);\par
+\par
+        beta_inv = msk.beta.duplicate();\par
+        beta_inv.invert();\par
+        pub.f = pub.g.duplicate();\par
+        pub.f.powZn(beta_inv);\par
+\par
+        pub.h = pub.g.duplicate();\par
+        pub.h.powZn(msk.beta);\par
+\par
+        pub.g_hat_alpha = pairing.pairing(pub.g, msk.g_alpha);\par
+    \}\par
+\par
+    /*\par
+     * Generate a private key with the given set of attributes.\par
+     */\par
+    public static BswabePrv keygen(BswabePub pub, BswabeMsk msk, String[] attrs)\par
+            throws NoSuchAlgorithmException \{\par
+        BswabePrv prv = new BswabePrv();\par
+        Element g_r, r, beta_inv;\par
+        Pairing pairing;\par
+\par
+        /* initialize */\par
+        pairing = pub.p;\par
+        prv.d = pairing.getG2().newElement();\par
+        g_r = pairing.getG2().newElement();\par
+        r = pairing.getZr().newElement();\par
+        beta_inv = pairing.getZr().newElement();\par
+\par
+        /* compute */\par
+        r.setToRandom();\par
+        g_r = pub.gp.duplicate();\par
+        g_r.powZn(r);\par
+\par
+        prv.d = msk.g_alpha.duplicate();\par
+        prv.d.mul(g_r);\par
+        beta_inv = msk.beta.duplicate();\par
+        beta_inv.invert();\par
+        prv.d.powZn(beta_inv);\par
+\par
+        int i, len = attrs.length;\par
+        \par
+        prv.comps = new ArrayList<BswabePrvComp>();\par
+        for (i = 0; i < len; i++) \{\par
+            System.out.println("attrs : "+attrs[i]);\par
+            BswabePrvComp comp = new BswabePrvComp();\par
+            Element h_rp;\par
+            Element rp;\par
+\par
+            comp.attr = attrs[i];\par
+\par
+            comp.d = pairing.getG2().newElement();\par
+            comp.dp = pairing.getG1().newElement();\par
+            h_rp = pairing.getG2().newElement();\par
+            rp = pairing.getZr().newElement();\par
+\par
+            elementFromString(h_rp, comp.attr);\par
+            rp.setToRandom();\par
+\par
+            h_rp.powZn(rp);\par
+\par
+            comp.d = g_r.duplicate();\par
+            comp.d.mul(h_rp);\par
+            comp.dp = pub.g.duplicate();\par
+            comp.dp.powZn(rp);\par
+\par
+            prv.comps.add(comp);\par
+        \}\par
+        return prv;\par
+    \}\par
+\par
+    /*\par
+     * Delegate a subset of attribute of an existing private key.\par
+     */\par
+    public static BswabePrv delegate(BswabePub pub, BswabePrv prv_src, String[] attrs_subset)\par
+            throws NoSuchAlgorithmException, IllegalArgumentException \{\par
+\par
+        BswabePrv prv = new BswabePrv();\par
+        Element g_rt, rt, f_at_rt;\par
+        Pairing pairing;\par
+\par
+        /* initialize */\par
+        pairing = pub.p;\par
+        prv.d = pairing.getG2().newElement();\par
+\par
+        g_rt = pairing.getG2().newElement();\par
+        rt = pairing.getZr().newElement();\par
+        f_at_rt = pairing.getZr().newElement();\par
+\par
+        /* compute */\par
+        rt.setToRandom();\par
+        f_at_rt = pub.f.duplicate();\par
+        f_at_rt.powZn(rt);\par
+        prv.d = prv_src.d.duplicate();\par
+        prv.d.mul(f_at_rt);\par
+\par
+        g_rt = pub.g.duplicate();\par
+        g_rt.powZn(rt);\par
+\par
+        int i, len = attrs_subset.length;\par
+        prv.comps = new ArrayList<BswabePrvComp>();\par
+\par
+        for (i = 0; i < len; i++) \{\par
+            BswabePrvComp comp = new BswabePrvComp();\par
+            Element h_rtp;\par
+            Element rtp;\par
+\par
+            comp.attr = attrs_subset[i];\par
+\par
+            BswabePrvComp comp_src = new BswabePrvComp();\par
+            boolean comp_src_init = false;\par
+\par
+            for (int j = 0; j < prv_src.comps.size(); ++j) \{\par
+                if (prv_src.comps.get(j).attr == comp.attr) \{\par
+                    comp_src = prv_src.comps.get(j);\par
+                    comp_src_init = true;\par
+                    break;\par
+                \}\par
+            \}\par
+\par
+            if (comp_src_init == false) \{\par
+                throw new IllegalArgumentException("comp_src_init == false");\par
+            \}\par
+\par
+            comp.d = pairing.getG2().newElement();\par
+            comp.dp = pairing.getG1().newElement();\par
+            h_rtp = pairing.getG2().newElement();\par
+            rtp = pairing.getZr().newElement();\par
+\par
+            elementFromString(h_rtp, comp.attr);\par
+            rtp.setToRandom();\par
+\par
+            h_rtp.powZn(rtp);\par
+\par
+            comp.d = g_rt.duplicate();\par
+            comp.d.mul(h_rtp);\par
+            comp.d.mul(comp_src.d);\par
+\par
+            comp.dp = pub.g.duplicate();\par
+            comp.dp.powZn(rtp);\par
+            comp.dp.mul(comp_src.dp);\par
+\par
+            prv.comps.add(comp);\par
+        \}\par
+\par
+        return prv;\par
+    \}\par
+\par
+    /*\par
+     * Pick a random group element and encrypt it under the specified access\par
+     * policy. The resulting ciphertext is returned and the Element given as an\par
+     * argument (which need not be initialized) is set to the random group\par
+     * element.\par
+     * \par
+     * After using this function, it is normal to extract the random data in m\par
+     * using the pbc functions element_length_in_bytes and element_to_bytes and\par
+     * use it as a key for hybrid encryption.\par
+     * \par
+     * The policy is specified as a simple string which encodes a postorder\par
+     * traversal of threshold tree defining the access policy. As an example,\par
+     * \par
+     * "foo bar fim 2of3 baf 1of2"\par
+     * \par
+     * specifies a policy with two threshold gates and four leaves. It is not\par
+     * possible to specify an attribute with whitespace in it (although "_" is\par
+     * allowed).\par
+     * \par
+     * Numerical attributes and any other fancy stuff are not supported.\par
+     * \par
+     * Returns null if an error occured, in which case a description can be\par
+     * retrieved by calling bswabe_error().\par
+     */\par
+    public static BswabeCphKey enc(BswabePub pub, String policy)\par
+            throws Exception \{\par
+        BswabeCphKey keyCph = new BswabeCphKey();\par
+        BswabeCph cph = new BswabeCph();\par
+        Element s, m;\par
+\par
+        /* initialize */\par
+        Pairing pairing = pub.p;\par
+        s = pairing.getZr().newElement();\par
+        m = pairing.getGT().newElement();\par
+        cph.cs = pairing.getGT().newElement();\par
+        cph.c = pairing.getG1().newElement();\par
+        cph.p = parsePolicyPostfix(policy);\par
+\par
+        /* compute */\par
+        m.setToRandom();\par
+        s.setToRandom();\par
+        cph.cs = pub.g_hat_alpha.duplicate();\par
+        cph.cs.powZn(s); /* num_exps++; */\par
+\par
+        cph.cs.mul(m); /* num_muls++; */\par
+\par
+        cph.c = pub.h.duplicate();\par
+        cph.c.powZn(s); /* num_exps++; */\par
+\par
+        fillPolicy(cph.p, pub, s);\par
+\par
+        keyCph.cph = cph;\par
+        keyCph.key = m;\par
+\par
+        return keyCph;\par
+    \}\par
+\par
+    /*\par
+     * Decrypt the specified ciphertext using the given private key, filling in\par
+     * the provided element m (which need not be initialized) with the result.\par
+     * \par
+     * Returns true if decryption succeeded, false if this key does not satisfy\par
+     * the policy of the ciphertext (in which case m is unaltered).\par
+     */\par
+    public static BswabeElementBoolean dec(BswabePub pub, BswabePrv prv,\par
+            BswabeCph cph) \{\par
+        Element t;\par
+        Element m;\par
+        BswabeElementBoolean beb = new BswabeElementBoolean();\par
+\par
+        m = pub.p.getGT().newElement();\par
+        t = pub.p.getGT().newElement();\par
+\par
+        checkSatisfy(cph.p, prv);\par
+        if (!cph.p.satisfiable) \{\par
+            System.err\par
+                    .println("cannot decrypt, attributes in key do not satisfy policy");\par
+            beb.e = null;\par
+            beb.b = false;\par
+            return beb;\par
+        \}\par
+\par
+        pickSatisfyMinLeaves(cph.p, prv);\par
+\par
+        decFlatten(t, cph.p, prv, pub);\par
+\par
+        m = cph.cs.duplicate();\par
+        m.mul(t); /* num_muls++; */\par
+\par
+        t = pub.p.pairing(cph.c, prv.d);\par
+        t.invert();\par
+        m.mul(t); /* num_muls++; */\par
+\par
+        beb.e = m;\par
+        beb.b = true;\par
+\par
+        return beb;\par
+    \}\par
+\par
+    private static void decFlatten(Element r, BswabePolicy p, BswabePrv prv,\par
+            BswabePub pub) \{\par
+        Element one;\par
+        one = pub.p.getZr().newElement();\par
+        one.setToOne();\par
+        r.setToOne();\par
+\par
+        decNodeFlatten(r, one, p, prv, pub);\par
+    \}\par
+\par
+    private static void decNodeFlatten(Element r, Element exp, BswabePolicy p,\par
+            BswabePrv prv, BswabePub pub) \{\par
+        if (p.children == null || p.children.length == 0) \{\par
+            decLeafFlatten(r, exp, p, prv, pub);\par
+        \} else \{\par
+            decInternalFlatten(r, exp, p, prv, pub);\par
+        \}\par
+    \}\par
+\par
+    private static void decLeafFlatten(Element r, Element exp, BswabePolicy p,\par
+            BswabePrv prv, BswabePub pub) \{\par
+        BswabePrvComp c;\par
+        Element s, t;\par
+\par
+        c = prv.comps.get(p.attri);\par
+\par
+        s = pub.p.getGT().newElement();\par
+        t = pub.p.getGT().newElement();\par
+\par
+        s = pub.p.pairing(p.c, c.d); /* num_pairings++; */\par
+\par
+        t = pub.p.pairing(p.cp, c.dp); /* num_pairings++; */\par
+\par
+        t.invert();\par
+        s.mul(t); /* num_muls++; */\par
+\par
+        s.powZn(exp); /* num_exps++; */\par
+\par
+        r.mul(s); /* num_muls++; */\par
+\par
+    \}\par
+\par
+    private static void decInternalFlatten(Element r, Element exp,\par
+            BswabePolicy p, BswabePrv prv, BswabePub pub) \{\par
+        int i;\par
+        Element t, expnew;\par
+\par
+        t = pub.p.getZr().newElement();\par
+        expnew = pub.p.getZr().newElement();\par
+\par
+        for (i = 0; i < p.satl.size(); i++) \{\par
+            lagrangeCoef(t, p.satl, (p.satl.get(i)).intValue());\par
+            expnew = exp.duplicate();\par
+            expnew.mul(t);\par
+            decNodeFlatten(r, expnew, p.children[p.satl.get(i) - 1], prv, pub);\par
+        \}\par
+    \}\par
+\par
+    private static void lagrangeCoef(Element r, ArrayList<Integer> s, int i) \{\par
+        int j, k;\par
+        Element t;\par
+\par
+        t = r.duplicate();\par
+\par
+        r.setToOne();\par
+        for (k = 0; k < s.size(); k++) \{\par
+            j = s.get(k).intValue();\par
+            if (j == i) \{\par
+                continue;\par
+            \}\par
+            t.set(-j);\par
+            r.mul(t); /* num_muls++; */\par
+\par
+            t.set(i - j);\par
+            t.invert();\par
+            r.mul(t); /* num_muls++; */\par
+\par
+        \}\par
+    \}\par
+\par
+    private static void pickSatisfyMinLeaves(BswabePolicy p, BswabePrv prv) \{\par
+        int i, k, l, c_i;\par
+        int len;\par
+        ArrayList<Integer> c = new ArrayList<Integer>();\par
+\par
+        if (p.children == null || p.children.length == 0) \{\par
+            p.min_leaves = 1;\par
+        \} else \{\par
+            len = p.children.length;\par
+            for (i = 0; i < len; i++) \{\par
+                if (p.children[i].satisfiable) \{\par
+                    pickSatisfyMinLeaves(p.children[i], prv);\par
+                \}\par
+            \}\par
+\par
+            for (i = 0; i < len; i++) \{\par
+                c.add(new Integer(i));\par
+            \}\par
+\par
+            Collections.sort(c, new IntegerComparator(p));\par
+\par
+            p.satl = new ArrayList<Integer>();\par
+            p.min_leaves = 0;\par
+            l = 0;\par
+\par
+            for (i = 0; i < len && l < p.k; i++) \{\par
+                c_i = c.get(i).intValue(); /* c[i] */\par
+\par
+                if (p.children[c_i].satisfiable) \{\par
+                    l++;\par
+                    p.min_leaves += p.children[c_i].min_leaves;\par
+                    k = c_i + 1;\par
+                    p.satl.add(new Integer(k));\par
+                \}\par
+            \}\par
+        \}\par
+    \}\par
+\par
+    private static void checkSatisfy(BswabePolicy p, BswabePrv prv) \{\par
+        int i, l;\par
+        String prvAttr;\par
+\par
+        p.satisfiable = false;\par
+        if (p.children == null || p.children.length == 0) \{\par
+            for (i = 0; i < prv.comps.size(); i++) \{\par
+                prvAttr = prv.comps.get(i).attr;\par
+\tab\tab\tab\tab // System.out.println("prvAtt:" + prvAttr);\par
+                // System.out.println("p.attr" + p.attr);\par
+                if (prvAttr.compareTo(p.attr) == 0) \{\par
+                    // System.out.println("=staisfy=");\par
+                    p.satisfiable = true;\par
+                    p.attri = i;\par
+                    break;\par
+                \}\par
+            \}\par
+        \} else \{\par
+            for (i = 0; i < p.children.length; i++) \{\par
+                checkSatisfy(p.children[i], prv);\par
+            \}\par
+\par
+            l = 0;\par
+            for (i = 0; i < p.children.length; i++) \{\par
+                if (p.children[i].satisfiable) \{\par
+                    l++;\par
+                \}\par
+            \}\par
+\par
+            if (l >= p.k) \{\par
+                p.satisfiable = true;\par
+            \}\par
+        \}\par
+    \}\par
+\par
+    private static void fillPolicy(BswabePolicy p, BswabePub pub, Element e)\par
+            throws NoSuchAlgorithmException \{\par
+        int i;\par
+        Element r, t, h;\par
+        Pairing pairing = pub.p;\par
+        r = pairing.getZr().newElement();\par
+        t = pairing.getZr().newElement();\par
+        h = pairing.getG2().newElement();\par
+\par
+        p.q = randPoly(p.k - 1, e);\par
+\par
+        if (p.children == null || p.children.length == 0) \{\par
+            p.c = pairing.getG1().newElement();\par
+            p.cp = pairing.getG2().newElement();\par
+\par
+            elementFromString(h, p.attr);\par
+            p.c = pub.g.duplicate();;\par
+            p.c.powZn(p.q.coef[0]);\par
+            p.cp = h.duplicate();\par
+            p.cp.powZn(p.q.coef[0]);\par
+        \} else \{\par
+            for (i = 0; i < p.children.length; i++) \{\par
+                r.set(i + 1);\par
+                evalPoly(t, p.q, r);\par
+                fillPolicy(p.children[i], pub, t);\par
+            \}\par
+        \}\par
+\par
+    \}\par
+\par
+    private static void evalPoly(Element r, BswabePolynomial q, Element x) \{\par
+        int i;\par
+        Element s, t;\par
+\par
+        s = r.duplicate();\par
+        t = r.duplicate();\par
+\par
+        r.setToZero();\par
+        t.setToOne();\par
+\par
+        for (i = 0; i < q.deg + 1; i++) \{\par
+            /* r += q->coef[i] * t */\par
+            s = q.coef[i].duplicate();\par
+            s.mul(t);\par
+            r.add(s);\par
+\par
+            /* t *= x */\par
+            t.mul(x);\par
+        \}\par
+\par
+    \}\par
+\par
+    private static BswabePolynomial randPoly(int deg, Element zeroVal) \{\par
+        int i;\par
+        BswabePolynomial q = new BswabePolynomial();\par
+        q.deg = deg;\par
+        q.coef = new Element[deg + 1];\par
+\par
+        for (i = 0; i < deg + 1; i++) \{\par
+            q.coef[i] = zeroVal.duplicate();\par
+        \}\par
+\par
+        q.coef[0].set(zeroVal);\par
+\par
+        for (i = 1; i < deg + 1; i++) \{\par
+            q.coef[i].setToRandom();\par
+        \}\par
+\par
+        return q;\par
+    \}\par
+\par
+    private static BswabePolicy parsePolicyPostfix(String s) throws Exception \{\par
+        String[] toks;\par
+        String tok;\par
+        ArrayList<BswabePolicy> stack = new ArrayList<BswabePolicy>();\par
+        BswabePolicy root;\par
+\par
+        toks = s.split(" ");\par
+\par
+        int toks_cnt = toks.length;\par
+        for (int index = 0; index < toks_cnt; index++) \{\par
+            int i, k, n;\par
+\par
+            tok = toks[index];\par
+            if (!tok.contains("of")) \{\par
+                stack.add(baseNode(1, tok));\par
+            \} else \{\par
+                BswabePolicy node;\par
+\par
+                /* parse kof n node */\par
+                String[] k_n = tok.split("of");\par
+                k = Integer.parseInt(k_n[0]);\par
+                n = Integer.parseInt(k_n[1]);\par
+\par
+                if (k < 1) \{\par
+                    System.out.println("error parsing " + s\par
+                            + ": trivially satisfied operator " + tok);\par
+                    return null;\par
+                \} else if (k > n) \{\par
+                    System.out.println("error parsing " + s\par
+                            + ": unsatisfiable operator " + tok);\par
+                    return null;\par
+                \} else if (n == 1) \{\par
+                    System.out.println("error parsing " + s\par
+                            + ": indentity operator " + tok);\par
+                    return null;\par
+                \} else if (n > stack.size()) \{\par
+                    System.out.println("error parsing " + s\par
+                            + ": stack underflow at " + tok);\par
+                    return null;\par
+                \}\par
+\par
+                /* pop n things and fill in children */\par
+                node = baseNode(k, null);\par
+                node.children = new BswabePolicy[n];\par
+\par
+                for (i = n - 1; i >= 0; i--) \{\par
+                    node.children[i] = stack.remove(stack.size() - 1);\par
+                \}\par
+\par
+                /* push result */\par
+                stack.add(node);\par
+            \}\par
+        \}\par
+\par
+        if (stack.size() > 1) \{\par
+            System.out.println("error parsing " + s\par
+                    + ": extra node left on the stack");\par
+            return null;\par
+        \} else if (stack.size() < 1) \{\par
+            System.out.println("error parsing " + s + ": empty policy");\par
+            return null;\par
+        \}\par
+\par
+        root = stack.get(0);\par
+        return root;\par
+    \}\par
+\par
+    private static BswabePolicy baseNode(int k, String s) \{\par
+        BswabePolicy p = new BswabePolicy();\par
+\par
+        p.k = k;\par
+        if (!(s == null)) \{\par
+            p.attr = s;\par
+        \} else \{\par
+            p.attr = null;\par
+        \}\par
+        p.q = null;\par
+\par
+        return p;\par
+    \}\par
+\par
+    private static void elementFromString(Element h, String s)\par
+            throws NoSuchAlgorithmException \{\par
+        MessageDigest md = MessageDigest.getInstance("SHA-1");\par
+        byte[] digest = md.digest(s.getBytes());\par
+        h.setFromHash(digest, 0, digest.length);\par
+    \}\par
+\par
+    private static class IntegerComparator implements Comparator<Integer> \{\par
+\par
+        BswabePolicy policy;\par
+\par
+        public IntegerComparator(BswabePolicy p) \{\par
+            this.policy = p;\par
+        \}\par
+\par
+        @Override\par
+        public int compare(Integer o1, Integer o2) \{\par
+            int k, l;\par
+\par
+            k = policy.children[o1.intValue()].min_leaves;\par
+            l = policy.children[o2.intValue()].min_leaves;\par
+\par
+            return k < l ? -1\par
+                    : k == l ? 0 : 1;\par
+        \}\par
+    \}\par
+\}\par
+\b cpabe.java\b0\par
+package cpabe;\par
+import java.security.SecureRandom;\par
+\par
+import javax.crypto.Cipher;\par
+import javax.crypto.KeyGenerator;\par
+import javax.crypto.SecretKey;\par
+import javax.crypto.spec.SecretKeySpec;\par
+\par
+public class AESCoder \{\par
+\par
+\tab private static byte[] getRawKey(byte[] seed) throws Exception \{\par
+\tab\tab KeyGenerator kgen = KeyGenerator.getInstance("AES");\par
+\tab\tab SecureRandom sr = SecureRandom.getInstance("SHA1PRNG");\par
+\tab\tab sr.setSeed(seed);\par
+\tab\tab kgen.init(128, sr); // 192 and 256 bits may not be available\par
+\tab\tab SecretKey skey = kgen.generateKey();\par
+\tab\tab byte[] raw = skey.getEncoded();\par
+\tab\tab return raw;\par
+\tab\}\par
+\par
+\tab public static byte[] encrypt(byte[] seed, byte[] plaintext)\par
+\tab\tab\tab throws Exception \{\par
+\tab\tab byte[] raw = getRawKey(seed);\par
+\tab\tab SecretKeySpec skeySpec = new SecretKeySpec(raw, "AES");\par
+\tab\tab Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");\par
+\tab\tab cipher.init(Cipher.ENCRYPT_MODE, skeySpec);\par
+\tab\tab byte[] encrypted = cipher.doFinal(plaintext);\par
+\tab\tab return encrypted;\par
+\tab\}\par
+\par
+\tab public static byte[] decrypt(byte[] seed, byte[] ciphertext)\par
+\tab\tab\tab throws Exception \{\par
+\tab\tab byte[] raw = getRawKey(seed);\par
+\tab\tab SecretKeySpec skeySpec = new SecretKeySpec(raw, "AES");\par
+\tab\tab Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");\par
+\tab\tab cipher.init(Cipher.DECRYPT_MODE, skeySpec);\par
+\tab\tab byte[] decrypted = cipher.doFinal(ciphertext);\par
+\tab\tab\par
+\tab\tab return decrypted;\par
+\tab\}\par
+\par
+\}\par
+\par
+\b Genhashh.java\b0\par
+/*\par
+ * To change this license header, choose License Headers in Project Properties.\par
+ * To change this template file, choose Tools | Templates\par
+ * and open the template in the editor.\par
+ */\par
+package hashGeneration;\par
+\par
+import java.io.BufferedInputStream;\par
+import java.io.File;\par
+import java.io.FileInputStream;\par
+import java.io.IOException;\par
+import java.io.InputStream;\par
+import java.security.MessageDigest;\par
+import java.security.NoSuchAlgorithmException;\par
+import java.util.Formatter;\par
+\par
+public class GenHashhh \{\par
+\par
+    public String hash;\par
+\par
+    public String sha1(String file) throws NoSuchAlgorithmException, IOException \{\par
+        final MessageDigest messageDigest = MessageDigest.getInstance("SHA1");\par
+\par
+        try (InputStream is = new BufferedInputStream(new FileInputStream(file))) \{\par
+            final byte[] buffer = new byte[1024];\par
+            for (int read = 0; (read = is.read(buffer)) != -1;) \{\par
+                messageDigest.update(buffer, 0, read);\par
+            \}\par
+        \}\par
+\par
+        // Convert the byte to hex format\par
+        try (Formatter formatter = new Formatter()) \{\par
+            for (final byte b : messageDigest.digest()) \{\par
+                formatter.format("%02x", b);\par
+            \}\par
+            hash = formatter.toString();\par
+//            System.out.println("" + formatter.toString());\par
+            return formatter.toString();\par
+        \}\par
+    \}\par
+\par
+//    public static void main(String[] args) throws NoSuchAlgorithmException, IOException \{\par
+//        File file = new File("C:\\\\Users\\\\Yatin\\\\Desktop\\\\Input\\\\encrypted.mp4");\par
+//        GenHashhh.sha1(file);\par
+//    \}\par
+\}\par
+}
+ 
